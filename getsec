@@ -1,0 +1,42 @@
+#!/usr/bin/env ruby
+require 'json'
+require 'colorize'
+
+def print_usage
+  puts "Usage:".light_blue
+  puts "  getsec list".light_blue
+  puts "    returns list of secrets in your AWS Secrets Manager".light_blue
+  puts "  getsec <secret name>".light_blue
+  puts "    returns secret values for <secret name>".light_blue
+  exit
+end
+print_usage unless ARGV.size == 1
+
+list_secrets = ""
+@secret_names = []
+
+if ARGV[0] == "list"
+  list_secrets=JSON.parse(`aws secretsmanager list-secrets`)
+  def push_secrets(seclist)
+    seclist["SecretList"].each do |secret|
+      @secret_names.push(secret["Name"])
+    end
+  end
+
+  loop do
+    push_secrets(list_secrets)
+    if list_secrets["NextToken"]
+      list_secrets=JSON.parse(`aws secretsmanager list-secrets --next-token #{list_secrets["NextToken"]}`)
+    end
+    break if not list_secrets["NextToken"]
+  end
+  @secret_names.sort.each do |val|
+    puts "#{val}".light_blue
+  end
+else
+  secret=JSON.parse(`aws secretsmanager get-secret-value --secret-id #{ARGV[0]}`)
+  JSON.parse(secret["SecretString"]).each do |val|
+    puts "#{val}"
+  end
+end
+
